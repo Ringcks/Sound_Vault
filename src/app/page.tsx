@@ -521,7 +521,6 @@ export default function Home() {
             { id: "overview", icon: "▦", label: "Overview" },
             { id: "library", icon: "♫", label: "Audio Library" },
             { id: "projects", icon: "▧", label: "Game Projects" },
-            { id: "assistant", icon: "✦", label: "Sound Assistant" },
           ].map((item) => (
             <button
               key={item.id}
@@ -537,7 +536,7 @@ export default function Home() {
               {item.label}
             </button>
           ))}
-        </nav>        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-4"><div className="mb-2 text-xl">✦</div><h2 className="font-semibold">Sound Assistant</h2><p className="mt-1 text-sm leading-5 text-slate-400">Ideas for sound layers using assets in your library.</p><span className="mt-3 inline-block rounded-full bg-indigo-950 px-3 py-1 text-xs text-indigo-300">Planned feature</span></div>
+        </nav>       
         <div className="mt-auto hidden border-t border-slate-800 pt-5 text-sm text-slate-400 md:block">Portfolio project · v0.3</div>
       </aside>
 

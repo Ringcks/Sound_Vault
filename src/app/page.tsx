@@ -11,6 +11,8 @@ type AudioAsset = {
   project: string;
   tags: string[];
   notes: string;
+  createdAt?: number;
+  updatedAt?: number;
   previewUrl?: string;
   fileData?: Blob;
   hasAudio: boolean;
@@ -122,6 +124,8 @@ export default function Home() {
   const [newTagName, setNewTagName] = useState("");
   const [projects, setProjects] = useState<string[]>([]);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -231,6 +235,14 @@ export default function Home() {
   const unassignedCount = assets.filter((asset) => !asset.project.trim() || asset.project === "Unassigned").length;
   const categoryCount = new Set(assets.map((asset) => asset.category)).size;
   const projectCount = new Set(assets.map((asset) => asset.project.trim()).filter((project) => project && project !== "Unassigned")).size;
+  const recentAssets = [...assets]
+    .filter((asset) => asset.createdAt || asset.updatedAt)
+    .sort(
+      (a, b) =>
+        (b.updatedAt ?? b.createdAt ?? 0) -
+        (a.updatedAt ?? a.createdAt ?? 0)
+    )
+    .slice(0, 5);
   const projectOptions = Array.from(
     new Set(
       assets
@@ -260,7 +272,22 @@ export default function Home() {
     }
     const imported: AudioAsset[] = selectedFiles.map((file, index) => {
       const name = file.name.replace(/\.(wav|mp3)$/i, "").replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
-      return { id: Date.now() + index, name: name || file.name, fileName: file.name, category: "Other", project: "Unassigned", tags: [], notes: "", previewUrl: URL.createObjectURL(file), fileData: file, hasAudio: true };
+
+      const now = Date.now();
+      return {
+        id: Date.now() + index,
+        name: name || file.name,
+        fileName: file.name,
+        category: "Other",
+        project: "Unassigned",
+        tags: [],
+        notes: "",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        previewUrl: URL.createObjectURL(file),
+        fileData: file,
+        hasAudio: true,
+      };
     });
     setAssets((current) => [...imported, ...current]);
     event.target.value = "";
@@ -273,8 +300,27 @@ export default function Home() {
 
   function saveEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editAsset.name.trim()) { alert("Please enter an asset name."); return; }
-    setAssets((current) => current.map((asset) => asset.id === editingId ? { ...asset, name: editAsset.name.trim(), category: editAsset.category, project: editAsset.project.trim() || "Unassigned", tags: editAsset.tags.split(",").map((tag) => tag.trim()).filter(Boolean), notes: editAsset.notes.trim() } : asset));
+    if (!editAsset.name.trim()) {
+      alert("Please enter an asset name.");
+      return;
+    }
+
+    setAssets((current) =>
+      current.map((asset) =>
+        asset.id === editingId
+          ? {
+            ...asset,
+            name: editAsset.name.trim(),
+            category: editAsset.category,
+            project: editAsset.project.trim() || "Unassigned",
+            tags: editAsset.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+            notes: editAsset.notes.trim(),
+            updatedAt: Date.now(),
+          }
+          : asset
+      )
+    );
+
     setEditingId(null);
   }
 
@@ -470,222 +516,596 @@ export default function Home() {
       <aside className="flex w-full flex-col bg-slate-950 p-5 text-white md:min-h-screen md:w-64 md:shrink-0">
         <div className="mb-10 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 text-xl font-bold">S</div><div><h1 className="text-lg font-bold">SoundVault</h1><p className="text-xs text-slate-400">Game audio workspace</p></div></div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Workspace</p>
-        <nav className="space-y-2"><div className="flex items-center gap-3 rounded-xl bg-indigo-500 px-4 py-3 font-medium"><span>▦</span> Overview</div><div className="flex items-center gap-3 rounded-xl px-4 py-3 text-slate-300"><span>♫</span> Audio Library</div><div className="flex items-center gap-3 rounded-xl px-4 py-3 text-slate-300"><span>▧</span> Game Projects</div><div className="flex items-center gap-3 rounded-xl px-4 py-3 text-slate-300"><span>✦</span> Sound Assistant</div></nav>
-        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-4"><div className="mb-2 text-xl">✦</div><h2 className="font-semibold">Sound Assistant</h2><p className="mt-1 text-sm leading-5 text-slate-400">Ideas for sound layers using assets in your library.</p><span className="mt-3 inline-block rounded-full bg-indigo-950 px-3 py-1 text-xs text-indigo-300">Planned feature</span></div>
+        <nav className="space-y-2">
+          {[
+            { id: "overview", icon: "▦", label: "Overview" },
+            { id: "library", icon: "♫", label: "Audio Library" },
+            { id: "projects", icon: "▧", label: "Game Projects" },
+            { id: "assistant", icon: "✦", label: "Sound Assistant" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id);
+                setSelectedProject(null);
+              }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition ${activeTab === item.id
+                ? "bg-indigo-500 text-white"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-4"><div className="mb-2 text-xl">✦</div><h2 className="font-semibold">Sound Assistant</h2><p className="mt-1 text-sm leading-5 text-slate-400">Ideas for sound layers using assets in your library.</p><span className="mt-3 inline-block rounded-full bg-indigo-950 px-3 py-1 text-xs text-indigo-300">Planned feature</span></div>
         <div className="mt-auto hidden border-t border-slate-800 pt-5 text-sm text-slate-400 md:block">Portfolio project · v0.3</div>
       </aside>
 
       <section className="min-w-0 flex-1 p-5 sm:p-8">
-        <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="text-sm text-slate-500">SoundVault / Overview</p><h2 className="mt-1 text-3xl font-bold tracking-tight">Game Audio Library</h2><p className="mt-2 text-slate-500">Import WAV and MP3 files, preview sounds, and organize them across projects.</p></div><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">DT</div><div><p className="text-sm font-semibold">My Workspace</p><p className="text-xs text-slate-500">Local demo library</p></div></div></header>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><MetricCard title="Audio Assets" value={String(assets.length)} detail="Items in your library" icon="♫" color="indigo" /><MetricCard title="Unassigned Assets" value={String(unassignedCount)} detail="Not linked to a project yet" icon="?" color="amber" /><MetricCard title="Categories Used" value={String(categoryCount)} detail="Different audio types" icon="▤" color="emerald" /><MetricCard title="Linked Projects" value={String(projectCount)} detail="Projects with assigned audio" icon="⌂" color="violet" /></div>
+        {activeTab === "projects" ? (
+          selectedProject ? (
+            <div>
+              <button
+                onClick={() => setSelectedProject(null)}
+                className="mb-6 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50"
+              >
+                ← Back to Projects
+              </button>
 
-        <div className="mb-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 sm:flex-row sm:items-center"><div><h3 className="font-semibold text-indigo-950">Add sounds without typing file paths</h3><p className="mt-1 text-sm leading-6 text-indigo-900">Select one or more WAV or MP3 files from your computer. SoundVault fills in each filename automatically.</p></div><div><input ref={fileInputRef} type="file" accept=".wav,.mp3,audio/wav,audio/mpeg" multiple onChange={importFiles} className="hidden" /><button onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700">+ Import Audio Files</button></div></div>
+              <header className="mb-8">
+                <p className="text-sm text-slate-500">
+                  SoundVault / Game Projects / {selectedProject}
+                </p>
+                <h2 className="mt-1 text-3xl font-bold tracking-tight">
+                  {selectedProject}
+                </h2>
+                <p className="mt-2 text-slate-500">
+                  Audio assets assigned to this project.
+                </p>
+              </header>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 xl:flex-row xl:items-center"><div><h3 className="text-lg font-bold">Audio Assets</h3><p className="mt-1 text-sm text-slate-500">Search filenames, projects, categories, tags, and notes.</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap"><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search audio assets..." aria-label="Search audio assets" className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 sm:w-56" /><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} aria-label="Filter by audio category" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"><option>All</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></div></div>
-          {selectedIds.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-indigo-50 px-5 py-4">
-              <p className="text-sm font-medium text-indigo-900">
-                {selectedIds.length} asset(s) selected
-              </p>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="mb-4 text-lg font-bold">Project Audio Assets</h3>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    if (event.target.value) {
-                      bulkChangeCategory(event.target.value);
-                      event.target.value = "";
-                    }
-                  }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  aria-label="Change category of selected assets"
-                >
-                  <option value="" disabled>Change Category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                {assets.filter((asset) => asset.project === selectedProject).length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    No audio assets assigned to this project yet.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {assets
+                      .filter((asset) => asset.project === selectedProject)
+                      .map((asset) => (
+                        <div
+                          key={asset.id}
+                          className="rounded-xl border border-slate-100 p-4"
+                        >
+                          <div className="mb-3">
+                            <p className="truncate font-medium">{asset.name}</p>
 
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    if (event.target.value) {
-                      bulkAssignProject(event.target.value);
-                      event.target.value = "";
-                    }
-                  }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  aria-label="Assign project to selected assets"
-                >
-                  <option value="" disabled>Assign Project</option>
-                  {projects.map((project) => (
-                    <option key={project} value={project}>
-                      {project}
-                    </option>
-                  ))}
-                  <option value="Unassigned">Unassigned</option>
-                </select>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+                                {asset.fileName.split(".").pop()?.toUpperCase() || "AUDIO"}
+                              </span>
 
-                {/* New project input and button */}
-                <div className="flex gap-2">
+                              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                                {asset.category}
+                              </span>
+
+                              {asset.fileData && (
+                                <span className="text-xs text-slate-400">
+                                  {(asset.fileData.size / (1024 * 1024)).toFixed(2)} MB
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {asset.previewUrl || asset.fileData ? (
+                            <audio
+                              controls
+                              src={
+                                asset.previewUrl ||
+                                URL.createObjectURL(asset.fileData!)
+                              }
+                              className="w-full"
+                            />
+                          ) : (
+                            <p className="text-xs text-slate-400">
+                              Audio preview unavailable
+                            </p>
+                          )}
+
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              onClick={() => {
+                                const confirmed = window.confirm(
+                                  `Remove "${asset.name}" from "${selectedProject}"?`
+                                );
+
+                                if (confirmed) {
+                                  setAssets((currentAssets) =>
+                                    currentAssets.map((currentAsset) =>
+                                      currentAsset.id === asset.id
+                                        ? { ...currentAsset, project: "Unassigned" }
+                                        : currentAsset
+                                    )
+                                  );
+                                }
+                              }}
+                              className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50"
+                            >
+                              Remove from Project
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <header className="mb-8">
+                <p className="text-sm text-slate-500">SoundVault / Game Projects</p>
+                <h2 className="mt-1 text-3xl font-bold tracking-tight">Game Projects</h2>
+                <p className="mt-2 text-slate-500">
+                  Organize your audio assets by game project.
+                </p>
+              </header>
+
+              <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="font-bold">Create a Project</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Add a project to organize your game audio.
+                </p>
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                   <input
                     type="text"
                     value={newProjectName}
                     onChange={(event) => setNewProjectName(event.target.value)}
-                    placeholder="New project name"
-                    className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Enter project name..."
+                    className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-indigo-500"
                   />
-
                   <button
-                    onClick={createAndAssignProject}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                    onClick={createProject}
+                    className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
                   >
-                    Assign New Project
+                    + Create Project
                   </button>
                 </div>
-
-                <button
-                  onClick={createProject}
-                  className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
-                >
-                  Create Project
-                </button>
-
-                <button
-                  onClick={() => {
-                    const oldName = prompt("Enter the current project name:");
-
-                    if (oldName === null) return;
-
-                    if (!projects.includes(oldName)) {
-                      alert("Project not found.");
-                      return;
-                    }
-
-                    const newName = prompt("Enter the new project name:");
-
-                    if (newName === null) return;
-
-                    renameProject(oldName, newName);
-                  }}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Rename Project
-                </button>
-
-                <button
-                  onClick={() => {
-                    const projectName = prompt("Enter the project name to delete:");
-
-                    if (projectName === null) return;
-
-                    if (!projects.includes(projectName)) {
-                      alert("Project not found.");
-                      return;
-                    }
-
-                    deleteProject(projectName);
-                  }}
-                  className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-                >
-                  Delete Project
-                </button>
-
-                {/* Bulk tag management */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTagName}
-                    onChange={(event) => setNewTagName(event.target.value)}
-                    placeholder="New tag"
-                    className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  />
-
-                  <button
-                    onClick={bulkAddTag}
-                    className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-                  >
-                    Add Tag
-                  </button>
-                </div>
-
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    if (event.target.value) {
-                      bulkRemoveTag(event.target.value);
-                      event.target.value = "";
-                    }
-                  }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  aria-label="Remove tag from selected assets"
-                >
-                  <option value="" disabled>Remove Tag</option>
-                  {Array.from(
-                    new Set(
-                      assets
-                        .filter((asset) => selectedIds.includes(asset.id))
-                        .flatMap((asset) => asset.tags)
-                    )
-                  ).map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={bulkDeleteAssets}
-                  className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-                >
-                  Delete Selected
-                </button>
-
-                <button
-                  onClick={() => setSelectedIds([])}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-                >
-                  Clear Selection
-                </button>
-
               </div>
+
+              <div className="mb-4">
+                <h3 className="text-lg font-bold">Your Projects</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {projects.length} saved project(s)
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {Array.from(
+                  new Set([
+                    ...projects,
+                    ...assets
+                      .map((asset) => asset.project.trim())
+                      .filter((project) => project && project !== "Unassigned"),
+                  ])
+                )
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((project) => {
+                    const assetCount = assets.filter(
+                      (asset) => asset.project === project
+                    ).length;
+
+                    return (
+                      <div
+                        key={project}
+                        className="rounded-2xl border border-slate-200 bg-white p-5"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-xl text-indigo-700">
+                            ▧
+                          </div>
+                          <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                            Game Project
+                          </span>
+                        </div>
+
+                        <h4 className="mt-4 text-lg font-bold">{project}</h4>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {assetCount} audio asset(s)
+                        </p>
+
+                        <div className="mt-5 flex flex-col gap-2">
+                          <button
+                            onClick={() => setSelectedProject(project)}
+                            className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                          >
+                            View Assets
+                          </button>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const newName = prompt(
+                                  `Rename "${project}" to:`,
+                                  project
+                                );
+
+                                if (newName !== null) {
+                                  renameProject(project, newName);
+                                }
+                              }}
+                              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50"
+                            >
+                              Rename
+                            </button>
+
+                            <button
+                              onClick={() => deleteProject(project)}
+                              className="flex-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {projects.length === 0 &&
+                !assets.some(
+                  (asset) =>
+                    asset.project.trim() && asset.project !== "Unassigned"
+                ) && (
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+                    <p className="text-lg font-semibold">No projects yet</p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Create your first game project to get started.
+                    </p>
+                  </div>
+                )}
             </div>
-          )}
-          <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
-            <th className="px-5 py-4">
-              <input
-                type="checkbox"
-                checked={allFilteredSelected}
-                onChange={toggleSelectAllFiltered}
-                aria-label="Select all filtered audio assets"
-                disabled={filteredAssets.length === 0}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600"
-              />
-            </th>
-            <th className="px-5 py-4 font-semibold">Audio Asset</th><th className="px-5 py-4 font-semibold">Category</th><th className="px-5 py-4 font-semibold">Project</th><th className="px-5 py-4 font-semibold">Tags</th><th className="px-5 py-4 font-semibold">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">
-              {filteredAssets.map((asset) => <tr key={asset.id} className="transition hover:bg-slate-50">{editingId === asset.id ? <td colSpan={6} className="p-4"><AssetForm value={editAsset} onChange={(key, value) => setEditAsset((current) => ({ ...current, [key]: value }))} onSubmit={saveEdit} onCancel={() => setEditingId(null)} /></td> : <>
-                <td className="px-5 py-4">
+          )
+        ) : activeTab === "library" ? (
+          <>
+            <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="text-sm text-slate-500">SoundVault / Overview</p><h2 className="mt-1 text-3xl font-bold tracking-tight">Game Audio Library</h2><p className="mt-2 text-slate-500">Import WAV and MP3 files, preview sounds, and organize them across projects.</p></div><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">DT</div><div><p className="text-sm font-semibold">My Workspace</p><p className="text-xs text-slate-500">Local demo library</p></div></div></header>
+
+            <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><MetricCard title="Audio Assets" value={String(assets.length)} detail="Items in your library" icon="♫" color="indigo" /><MetricCard title="Unassigned Assets" value={String(unassignedCount)} detail="Not linked to a project yet" icon="?" color="amber" /><MetricCard title="Categories Used" value={String(categoryCount)} detail="Different audio types" icon="▤" color="emerald" /><MetricCard title="Linked Projects" value={String(projectCount)} detail="Projects with assigned audio" icon="⌂" color="violet" /></div>
+
+            <div className="mb-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 sm:flex-row sm:items-center"><div><h3 className="font-semibold text-indigo-950">Add sounds without typing file paths</h3><p className="mt-1 text-sm leading-6 text-indigo-900">Select one or more WAV or MP3 files from your computer. SoundVault fills in each filename automatically.</p></div><div><input ref={fileInputRef} type="file" accept=".wav,.mp3,audio/wav,audio/mpeg" multiple onChange={importFiles} className="hidden" /><button onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700">+ Import Audio Files</button></div></div>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 xl:flex-row xl:items-center"><div><h3 className="text-lg font-bold">Audio Assets</h3><p className="mt-1 text-sm text-slate-500">Search filenames, projects, categories, tags, and notes.</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap"><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search audio assets..." aria-label="Search audio assets" className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 sm:w-56" /><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} aria-label="Filter by audio category" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"><option>All</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></div></div>
+              {selectedIds.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-indigo-50 px-5 py-4">
+                  <p className="text-sm font-medium text-indigo-900">
+                    {selectedIds.length} asset(s) selected
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      defaultValue=""
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          bulkChangeCategory(event.target.value);
+                          event.target.value = "";
+                        }
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      aria-label="Change category of selected assets"
+                    >
+                      <option value="" disabled>Change Category</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      defaultValue=""
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          bulkAssignProject(event.target.value);
+                          event.target.value = "";
+                        }
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      aria-label="Assign project to selected assets"
+                    >
+                      <option value="" disabled>Assign Project</option>
+                      {projects.map((project) => (
+                        <option key={project} value={project}>
+                          {project}
+                        </option>
+                      ))}
+                      <option value="Unassigned">Unassigned</option>
+                    </select>
+
+                    {/* New project input and button */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newProjectName}
+                        onChange={(event) => setNewProjectName(event.target.value)}
+                        placeholder="New project name"
+                        className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      />
+
+                      <button
+                        onClick={createAndAssignProject}
+                        className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                      >
+                        Assign New Project
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={createProject}
+                      className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
+                    >
+                      Create Project
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const oldName = prompt("Enter the current project name:");
+
+                        if (oldName === null) return;
+
+                        if (!projects.includes(oldName)) {
+                          alert("Project not found.");
+                          return;
+                        }
+
+                        const newName = prompt("Enter the new project name:");
+
+                        if (newName === null) return;
+
+                        renameProject(oldName, newName);
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Rename Project
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const projectName = prompt("Enter the project name to delete:");
+
+                        if (projectName === null) return;
+
+                        if (!projects.includes(projectName)) {
+                          alert("Project not found.");
+                          return;
+                        }
+
+                        deleteProject(projectName);
+                      }}
+                      className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Delete Project
+                    </button>
+
+                    {/* Bulk tag management */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newTagName}
+                        onChange={(event) => setNewTagName(event.target.value)}
+                        placeholder="New tag"
+                        className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      />
+
+                      <button
+                        onClick={bulkAddTag}
+                        className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                      >
+                        Add Tag
+                      </button>
+                    </div>
+
+                    <select
+                      defaultValue=""
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          bulkRemoveTag(event.target.value);
+                          event.target.value = "";
+                        }
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      aria-label="Remove tag from selected assets"
+                    >
+                      <option value="" disabled>Remove Tag</option>
+                      {Array.from(
+                        new Set(
+                          assets
+                            .filter((asset) => selectedIds.includes(asset.id))
+                            .flatMap((asset) => asset.tags)
+                        )
+                      ).map((tag) => (
+                        <option key={tag} value={tag}>
+                          {tag}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={bulkDeleteAssets}
+                      className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Delete Selected
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedIds([])}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                    >
+                      Clear Selection
+                    </button>
+
+                  </div>
+                </div>
+              )}
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
+                <th className="px-5 py-4">
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(asset.id)}
-                    onChange={() => toggleAssetSelection(asset.id)}
-                    aria-label={`Select ${asset.name}`}
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    aria-label="Select all filtered audio assets"
+                    disabled={filteredAssets.length === 0}
                     className="h-4 w-4 rounded border-slate-300 text-indigo-600"
                   />
-                </td>
-                <td className="min-w-64 px-5 py-4"><p className="font-semibold">{asset.name}</p><p className="mt-1 break-all text-xs text-slate-500">{asset.fileName}</p>{asset.notes && <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">{asset.notes}</p>}{asset.previewUrl ? <div className="mt-3 max-w-xs"><audio controls preload="metadata" src={asset.previewUrl} onPlay={() => setPlayingId(asset.id)} onPause={() => setPlayingId((current) => current === asset.id ? null : current)} className="h-9 w-full" /><p className="mt-1 text-xs text-emerald-700">{playingId === asset.id ? "Playing preview" : "Ready to preview"}</p></div> : <p className="mt-2 text-xs text-amber-700">Demo item — import a file to enable playback.</p>}</td><td className="whitespace-nowrap px-5 py-4 text-slate-600">{asset.category}</td><td className="whitespace-nowrap px-5 py-4 text-slate-600">{asset.project}</td><td className="min-w-40 px-5 py-4"><div className="flex flex-wrap gap-1.5">{asset.tags.length ? asset.tags.map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{tag}</span>) : <span className="text-xs text-slate-400">No tags</span>}</div></td><td className="whitespace-nowrap px-5 py-4"><div className="flex gap-2"><button onClick={() => startEditing(asset)} className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-100">Edit</button><button onClick={() => deleteAsset(asset.id)} className="rounded border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button></div></td></>}</tr>)}
-              {filteredAssets.length === 0 && <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No audio assets match your search or filters.</td></tr>}
-            </tbody></table></div><div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">Showing {filteredAssets.length} of {assets.length} audio assets</div>
-        </section>
-        <p className="mt-6 text-center text-xs text-slate-400">SoundVault · Imported files stay in your browser session · Built with Next.js and TypeScript</p>
-        <p className="mt-2 text-center text-xs text-slate-400">
-          {storageMessage}. Audio and metadata are stored locally in this browser.
-          Keep backups of important source files.
-        </p>
+                </th>
+                <th className="px-5 py-4 font-semibold">Audio Asset</th><th className="px-5 py-4 font-semibold">Category</th><th className="px-5 py-4 font-semibold">Project</th><th className="px-5 py-4 font-semibold">Tags</th><th className="px-5 py-4 font-semibold">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">
+                  {filteredAssets.map((asset) => <tr key={asset.id} className="transition hover:bg-slate-50">{editingId === asset.id ? <td colSpan={6} className="p-4"><AssetForm value={editAsset} onChange={(key, value) => setEditAsset((current) => ({ ...current, [key]: value }))} onSubmit={saveEdit} onCancel={() => setEditingId(null)} /></td> : <>
+                    <td className="px-5 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(asset.id)}
+                        onChange={() => toggleAssetSelection(asset.id)}
+                        aria-label={`Select ${asset.name}`}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                      />
+                    </td>
+                    <td className="min-w-64 px-5 py-4"><p className="font-semibold">{asset.name}</p><p className="mt-1 break-all text-xs text-slate-500">{asset.fileName}</p>{asset.notes && <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">{asset.notes}</p>}{asset.previewUrl ? <div className="mt-3 max-w-xs"><audio controls preload="metadata" src={asset.previewUrl} onPlay={() => setPlayingId(asset.id)} onPause={() => setPlayingId((current) => current === asset.id ? null : current)} className="h-9 w-full" /><p className="mt-1 text-xs text-emerald-700">{playingId === asset.id ? "Playing preview" : "Ready to preview"}</p></div> : <p className="mt-2 text-xs text-amber-700">Demo item — import a file to enable playback.</p>}</td><td className="whitespace-nowrap px-5 py-4 text-slate-600">{asset.category}</td><td className="whitespace-nowrap px-5 py-4 text-slate-600">{asset.project}</td><td className="min-w-40 px-5 py-4"><div className="flex flex-wrap gap-1.5">{asset.tags.length ? asset.tags.map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{tag}</span>) : <span className="text-xs text-slate-400">No tags</span>}</div></td><td className="whitespace-nowrap px-5 py-4"><div className="flex gap-2"><button onClick={() => startEditing(asset)} className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-100">Edit</button><button onClick={() => deleteAsset(asset.id)} className="rounded border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button></div></td></>}</tr>)}
+                  {filteredAssets.length === 0 && <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No audio assets match your search or filters.</td></tr>}
+                </tbody></table></div><div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">Showing {filteredAssets.length} of {assets.length} audio assets</div>
+            </section>
+            <p className="mt-6 text-center text-xs text-slate-400">SoundVault · Imported files stay in your browser session · Built with Next.js and TypeScript</p>
+            <p className="mt-2 text-center text-xs text-slate-400">
+              {storageMessage}. Audio and metadata are stored locally in this browser.
+              Keep backups of important source files.
+            </p>
+
+          </>
+        ) : (
+          <div>
+            <header className="mb-8">
+              <p className="text-sm text-slate-500">SoundVault / Overview</p>
+              <h2 className="mt-1 text-3xl font-bold tracking-tight">
+                Overview
+              </h2>
+              <p className="mt-2 text-slate-500">
+                Your game audio workspace at a glance.
+              </p>
+            </header>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                title="Audio Assets"
+                value={String(assets.length)}
+                detail="Items in your library"
+                icon="♫"
+                color="indigo"
+              />
+              <MetricCard
+                title="Unassigned Assets"
+                value={String(unassignedCount)}
+                detail="Not linked to a project yet"
+                icon="?"
+                color="amber"
+              />
+              <MetricCard
+                title="Categories Used"
+                value={String(categoryCount)}
+                detail="Different audio types"
+                icon="▤"
+                color="emerald"
+              />
+              <MetricCard
+                title="Linked Projects"
+                value={String(projectCount)}
+                detail="Projects with assigned audio"
+                icon="⌂"
+                color="violet"
+              />
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+              <h3 className="text-lg font-bold">Welcome to SoundVault</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Manage your game audio assets, preview sounds, and organize
+                them by project.
+              </p>
+
+              <button
+                onClick={() => setActiveTab("library")}
+                className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+              >
+                Open Audio Library
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Recent Audio Activity
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Your latest imported and edited audio assets.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setActiveTab("library")}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  View All Assets
+                </button>
+              </div>
+
+              {recentAssets.length > 0 ? (
+                <div className="divide-y divide-slate-100">
+                  {recentAssets.map((asset) => {
+                    const wasEdited =
+                      Boolean(
+                        asset.updatedAt &&
+                        (!asset.createdAt || asset.updatedAt > asset.createdAt)
+                      );
+
+                    const activityTime = asset.updatedAt ?? asset.createdAt ?? 0;
+
+                    return (
+                      <div
+                        key={asset.id}
+                        className="flex items-center justify-between gap-4 py-4"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {asset.name}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-slate-500">
+                            {asset.fileName}
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <span className="text-xs font-medium text-slate-600">
+                            {wasEdited ? "Edited" : "Added"}
+                          </span>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {new Date(activityTime).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="py-6 text-center text-sm text-slate-400">
+                  No recent activity yet. Import an audio file or edit an asset to see it here.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

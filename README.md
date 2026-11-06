@@ -54,7 +54,7 @@ Built as a personal portfolio project, SoundVault focuses on making audio asset 
 1. Clone the repository:
 
    ```bash
-   git clone <your-github-repository-url>
+   git clone <https://github.com/Ringcks/Sound_Vault.git>
    ```
 
 2. Navigate to the project directory:

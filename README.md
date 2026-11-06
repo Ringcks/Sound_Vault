@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SoundVault
+
+**A Game Audio Asset Management Tool**
+
+SoundVault is a web-based application designed to help game developers and audio creators organize, preview, and manage their sound effect libraries.
+
+Built as a personal portfolio project, SoundVault focuses on making audio asset management more convenient through a clean interface and practical workflow features.
+
+## Features
+
+### Audio Asset Management
+- Import multiple WAV and MP3 files directly from your computer.
+- Preview audio files in the browser.
+- Search and filter assets by name and category.
+- Edit asset metadata, including names, categories, and tags.
+- Delete individual assets or manage multiple assets at once.
+
+### Bulk Management
+- Select multiple audio assets.
+- Change categories in bulk.
+- Assign assets to game projects.
+- Add tags to multiple assets.
+- Delete selected assets.
+
+### Game Project Organization
+- Create, edit, and delete game projects.
+- Organize audio assets by project.
+- View project details and associated assets.
+- Save project information between sessions.
+
+### Dashboard
+- View audio library statistics.
+- Track asset categories and project organization.
+- Access recently added assets.
+
+## Technologies Used
+
+- **Next.js** – React framework
+- **React** – User interface development
+- **TypeScript** – Type-safe application logic
+- **Tailwind CSS** – Styling and responsive layout
+- **IndexedDB** – Local storage for audio assets
+- **LocalStorage** – Persistent game project data
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js
+- npm
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   git clone <your-github-repository-url>
+   ```
 
-## Learn More
+2. Navigate to the project directory:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   cd soundvault
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Install dependencies:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+4. Start the development server:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Storage
+
+SoundVault currently stores audio assets and project information locally in the browser.
+
+Audio files are imported from the user's computer and stored using IndexedDB, while project information is saved using LocalStorage.
+
+This version is designed for local use in the browser.
+
+## Project Background
+
+SoundVault was developed as a personal portfolio project to explore web application development and create a practical tool for game development workflows.
+
+The project combines my background in game development with my interest in audio organization and software development.
+
+## Future Improvements
+
+- Audio waveform visualization
+- Advanced audio filtering and sorting
+- Additional audio metadata tools
+- Cloud storage and synchronization
+
+## Author
+
+**David Teo**
+
+Game Development Graduate | Gameplay Programmer
+
